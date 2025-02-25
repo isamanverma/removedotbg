@@ -22,14 +22,14 @@ const clerkWebhooks = async (req, res) => {
           email: data.email_addresses[0].email_address,
           firstName: data.first_name,
           lastName: data.last_name,
-          photo: data.img_url,
+          photo: data.image_url || data.profile_image_url,
         };
         console.log('Creating user with data:', userData);
         
         const newUser = await userModel.create(userData);
         console.log('User created:', newUser);
         
-        res.json({ success: true });
+        res.status(201).json({ success: true });
         break;
       }
       case "user.updated": {
@@ -37,16 +37,20 @@ const clerkWebhooks = async (req, res) => {
           email: data.email_addresses[0].email_address,
           firstName: data.first_name,
           lastName: data.last_name,
-          photo: data.img_url,
+          photo: data.image_url || data.profile_image_url,
         };
         await userModel.findOneAndUpdate({ clerkId: data.id }, userData);
-        res.json({});
+        res.status(200).json({ success: true });
         break;
       }
       case "user.deleted": {
         await userModel.findOneAndDelete({ clerkId: data.id });
-        res.json({});
+        res.status(200).json({ success: true });
         break;
+      }
+      default: {
+        console.log('Unhandled webhook type:', type);
+        res.status(400).json({ success: false, message: 'Unhandled webhook type' });
       }
     }
   } catch (error) {
