@@ -7,11 +7,7 @@ import userRouter from "./routes/userRoutes.js";
 const app = express();
 
 // MIDDLEWARES
-app.use(express.json({
-  verify: (req, res, buf) => {
-    req.rawBody = buf.toString();
-  }
-}));
+app.use(express.json());
 app.use(
   cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",

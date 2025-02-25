@@ -4,33 +4,54 @@ import userModel from "../models/userModel.js";
 // http://localhost:4000/api/user/webhooks
 const clerkWebhooks = async (req, res) => {
   try {
+    // Log incoming request
+    console.log('Webhook Headers:', req.headers);
+    console.log('Webhook Body:', req.body);
+
+    if (!process.env.CLERK_WEBHOOK_SECRET) {
+      throw new Error('CLERK_WEBHOOK_SECRET is not configured');
+    }
+
     const whook = new Webhook(process.env.CLERK_WEBHOOK_SECRET);
-    await whook.verify(req.rawBody, {
-      "svix-id": req.headers["svix-id"],
-      "svix-timestamp": req.headers["svix-timestamp"],
-      "svix-signature": req.headers["svix-signature"],
-    });
+    
+    try {
+      await whook.verify(JSON.stringify(req.body), {
+        "svix-id": req.headers["svix-id"],
+        "svix-timestamp": req.headers["svix-timestamp"],
+        "svix-signature": req.headers["svix-signature"],
+      });
+    } catch (verifyError) {
+      console.error('Webhook verification failed:', verifyError);
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Webhook verification failed',
+        error: verifyError.message 
+      });
+    }
     
     const { data, type } = req.body;
     console.log('Webhook type:', type);
-    console.log('Webhook data:', data);
+    console.log('Webhook data:', JSON.stringify(data, null, 2));
     
     switch (type) {
       case "user.created": {
         const userData = {
           clerkId: data.id,
           email: data.email_addresses[0].email_address,
-          firstName: data.first_name,
-          lastName: data.last_name,
-          photo: data.image_url || data.profile_image_url,
+          firstName: data.first_name || '',
+          lastName: data.last_name || '',
+          photo: data.image_url || data.profile_image_url || 'https://via.placeholder.com/150',
         };
-        console.log('Creating user with data:', userData);
+        console.log('Creating user with data:', JSON.stringify(userData, null, 2));
         
-        const newUser = await userModel.create(userData);
-        console.log('User created:', newUser);
-        
-        res.status(201).json({ success: true });
-        break;
+        try {
+          const newUser = await userModel.create(userData);
+          console.log('User created successfully:', JSON.stringify(newUser, null, 2));
+          return res.status(201).json({ success: true, user: newUser });
+        } catch (dbError) {
+          console.error('Database error while creating user:', dbError);
+          throw dbError;
+        }
       }
       case "user.updated": {
         const userData = {
@@ -55,7 +76,11 @@ const clerkWebhooks = async (req, res) => {
     }
   } catch (error) {
     console.error('Webhook error:', error);
-    res.status(500).json({ success: false, message: error.message });
+    return res.status(500).json({ 
+      success: false, 
+      message: 'Internal server error',
+      error: error.message 
+    });
   }
 };
 
