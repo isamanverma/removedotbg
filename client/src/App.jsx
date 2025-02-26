@@ -5,6 +5,7 @@ import Result from "./pages/Result";
 import Error from "./pages/Error";
 import Layout from "./components/Layout";
 
+
 const App = () => {
   const router = createBrowserRouter([
     {
